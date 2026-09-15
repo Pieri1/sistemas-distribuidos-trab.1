@@ -42,9 +42,6 @@ def main():
     queue_name = result.method.queue
 
     channel.queue_bind(exchange='eCommerce', queue=queue_name, routing_key='pedido.estoque_ok')
-
-    result = channel.queue_declare(queue='fila_estoque', exclusive=False)
-    queue_name = result.method.queue
     
     channel.basic_consume(queue=queue_name, on_message_callback=callback, auto_ack=True)
     channel.start_consuming()

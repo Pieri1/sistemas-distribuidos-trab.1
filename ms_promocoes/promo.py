@@ -32,7 +32,7 @@ def main():
         )
         print(f"\nEnviando {routing_key}:{mensagem}")
             
-        time.sleep(random.uniform(3, 8))
+        time.sleep(random.uniform(15, 30))
 
 if __name__ == '__main__':
     try:

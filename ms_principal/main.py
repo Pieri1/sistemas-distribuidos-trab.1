@@ -81,16 +81,23 @@ def main():
                     print(f"- {p}: R$ {preco:.2f}")
 
             elif opcao == '2':
-                produto = input("Digite o id do produto: ")
-                qtd = int(input("Quantidade: "))
+                produtos = {}
+                while True:
+                    produto = input("Digite o id do produto (0 para sair): ")
+                    if produto == "0":
+                        break
+                    produtos[produto] = int(input("Quantidade: "))
+
+                if not produtos:
+                    continue
                 
                 id_pedido = str(uuid.uuid4())[:8]
                 pedidos[id_pedido] = {
-                    "produtos": {produto: qtd},
+                    "produtos": produtos,
                     "status": "pedido.criado"
                 }
                 
-                mensagem = {"id_pedido": id_pedido, "produtos": {produto: qtd}}
+                mensagem = {"id_pedido": id_pedido, "produtos": produtos}
                 publish('pedido.criado', mensagem)
                 print(f"\nEnviando 'pedido.criado': {id_pedido}")
 
@@ -104,7 +111,7 @@ def main():
                     print("\nPedido não encontrado")
 
             elif opcao == '4':
-                print("\n--- Meus Pediso ---")
+                print("\n--- Meus Pedidos ---")
                 for pid, info in pedidos.items():
                     print(f"ID: {pid} | Produtos: {info['produtos']} | Status: {info['status']}")
 
