@@ -1,9 +1,17 @@
 import pika
 import sys
 import json
+from seguranca import validar_envelope
 
 def callback(ch, method, properties, body):
-    mensagem = json.loads(body)
+    mensagem = validar_envelope(body.decode("utf-8"), key_path="public_keys/promocoes.pem")
+
+    if mensagem is None:
+        print(
+            f"\n [❌] Promoção descartada na routing key {method.routing_key}:"
+            " Assinatura digital inválida!"
+        )
+        return
     print(f"\nRecebido (Routing Key: {method.routing_key}):")
     print(f"\n- Categoria: {mensagem.get('categoria')}")
     print(f"\n- Desconto: {mensagem.get('desconto')}")

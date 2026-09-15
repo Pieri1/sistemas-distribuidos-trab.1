@@ -5,6 +5,15 @@ import threading
 import uuid
 import csv
 from pathlib import Path
+from seguranca import assinar_payload, validar_envelope
+
+ORIGEM_CHAVES = {
+    "pedido.estoque_ok": "public_keys/estoque.pem",
+    "estoque.indisponivel": "public_keys/estoque.pem",
+    "pagamento.aprovado": "public_keys/pagamento.pem",
+    "pagamento.recusado": "public_keys/pagamento.pem",
+    "pedido.enviado": "public_keys/entrega.pem",
+}
 
 pedidos = {}
 with open(Path(__file__).parent.parent / "data" / "estoque_produtos.csv", newline="", encoding="utf-8") as arq:
@@ -18,17 +27,25 @@ def publish(routing_key, mensagem):
     channel = connection.channel()
 
     channel.exchange_declare(exchange='eCommerce', exchange_type='direct')
+    payload = assinar_payload(mensagem, key_path="private_key.pem")
 
     channel.basic_publish(
         exchange='eCommerce',
         routing_key=routing_key,
-        body=json.dumps(mensagem)
+        body=json.dumps(payload)
     )
     connection.close()
 
 def callback_consumidor(ch, method, properties, body):
     evento = method.routing_key
-    mensagem = json.loads(body)
+    key = ORIGEM_CHAVES.get(evento)
+    mensagem = validar_envelope(body.decode("utf-8"), key_path=key)
+
+    if mensagem is None:
+        print(f"\n [❌] Descartado {evento}: Assinatura digital inválida!")
+        ch.basic_ack(delivery_tag=method.delivery_tag)
+        return
+
     id_pedido = mensagem.get("id_pedido")
     
     if id_pedido in pedidos:
@@ -37,14 +54,17 @@ def callback_consumidor(ch, method, properties, body):
 
         if evento in ["estoque.indisponivel", "pagamento.recusado"]:
             print(f"\nEnviando 'pedido.excluido': {id_pedido}...")
+            mensagem_json = {"id_pedido": id_pedido}
+            payload = assinar_payload(mensagem_json, key_path="private_key.pem")
             ch.basic_publish(
                 exchange='eCommerce',
                 routing_key='pedido.excluido',
-                body=json.dumps({"id_pedido": id_pedido})
+                body=json.dumps(payload)
             )
             pedidos[id_pedido]['status'] = "pedido.excluido"
             
     print("\nComando (1-Visualizar, 2-Comprar, 3-Excluir, 4-Status, 5-Sair): ", end="")
+    ch.basic_ack(delivery_tag=method.delivery_tag)
 
 def iniciar_consumidor():
     connection = pika.BlockingConnection(
@@ -54,14 +74,10 @@ def iniciar_consumidor():
     result = channel.queue_declare(queue='fila_principal', exclusive=False)
     queue_name = result.method.queue
 
-    routing_keys = [
-        'pagamento.aprovado', 'pagamento.recusado', 
-        'pedido.enviado', 'pedido.estoque_ok', 'estoque.indisponivel'
-    ]
-    for rk in routing_keys:
+    for rk in ORIGEM_CHAVES.keys():
         channel.queue_bind(exchange='eCommerce', queue=queue_name, routing_key=rk)
 
-    channel.basic_consume(queue=queue_name, on_message_callback=callback_consumidor, auto_ack=True)
+    channel.basic_consume(queue=queue_name, on_message_callback=callback_consumidor, auto_ack=False)
     channel.start_consuming()
 
 def main():

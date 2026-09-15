@@ -3,6 +3,7 @@ import sys
 import json
 import random
 import time
+from seguranca import assinar_payload
 
 def main():
     connection = pika.BlockingConnection(
@@ -19,18 +20,20 @@ def main():
             
         routing_key = f'promocao.categoria.{categoria}'
             
-        mensagem = {
+        mensagem_json = {
             "categoria": categoria,
             "desconto": f"{desconto}%",
             "mensagem": f"Desconto lançado na categoria {categoria}!"
         }
 
+        payload = assinar_payload(mensagem_json, key_path="private_key.pem")
+
         channel.basic_publish(
             exchange='Promo',
             routing_key=routing_key,
-            body=json.dumps(mensagem)
+            body=json.dumps(payload)
         )
-        print(f"\nEnviando {routing_key}:{mensagem}")
+        print(f"\nEnviando {routing_key}:{mensagem_json}")
             
         time.sleep(random.uniform(15, 30))
 

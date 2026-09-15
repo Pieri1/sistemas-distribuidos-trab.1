@@ -3,6 +3,7 @@ import sys
 import json
 import csv
 from pathlib import Path
+from seguranca import assinar_payload, validar_envelope
 
 with open(Path(__file__).parent.parent / "data" / "estoque_produtos.csv", newline="", encoding="utf-8") as arq:
     registros = csv.reader(arq)
@@ -13,10 +14,15 @@ reservas = {}
 
 def callback(ch, method, properties, body):
     evento = method.routing_key
-    mensagem = json.loads(body)
+    mensagem = validar_envelope(body.decode("utf-8"), key_path="public_keys/principal.pem")
+
+    if mensagem is None:
+        print(f"\n [❌] Descartado {evento}: Assinatura digital inválida!")
+        ch.basic_ack(delivery_tag=method.delivery_tag)
+        return
+
     id_pedido = mensagem.get("id_pedido")
-    
-    print(f"\nRecebido {evento}: {mensagem}")
+    print(f"\nRecebido e validado {evento}: {mensagem}")
 
     if evento == "pedido.criado":
         produtos_solicitados = mensagem.get("produtos", {})
@@ -34,17 +40,22 @@ def callback(ch, method, properties, body):
             reservas[id_pedido] = produtos_solicitados
             
             print(f"\nEnviando 'pedido.estoque_ok': {id_pedido}")
+            mensagem_json = {"id_pedido": id_pedido}
+            payload = assinar_payload(mensagem_json, key_path="private_key.pem")
+
             ch.basic_publish(
                 exchange='eCommerce',
                 routing_key='pedido.estoque_ok',
-                body=json.dumps({"id_pedido": id_pedido})
+                body=json.dumps(payload)
             )
         else:
             print(f"\n Enviando 'estoque.indisponivel': {id_pedido}")
+            mensagem_json = {"id_pedido": id_pedido}
+            payload = assinar_payload(mensagem_json, key_path="private_key.pem")
             ch.basic_publish(
                 exchange='eCommerce',
                 routing_key='estoque.indisponivel',
-                body=json.dumps({"id_pedido": id_pedido})
+                body=json.dumps(payload)
             )
 
     elif evento == "pedido.excluido":
@@ -56,6 +67,7 @@ def callback(ch, method, properties, body):
             print(f"\nRemovido da reserva: {id_pedido}")
             
     print(f" Estoque: {estoque}")
+    ch.basic_ack(delivery_tag=method.delivery_tag)
 
 def main():
     connection = pika.BlockingConnection(
@@ -73,7 +85,7 @@ def main():
 
     print(f" Estoque: {estoque}")
 
-    channel.basic_consume(queue=queue_name, on_message_callback=callback, auto_ack=True)
+    channel.basic_consume(queue=queue_name, on_message_callback=callback, auto_ack=False)
     channel.start_consuming()
 
 if __name__ == '__main__':
