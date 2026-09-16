@@ -24,7 +24,7 @@ def main():
 
     channel.exchange_declare(exchange='Promo', exchange_type='topic')
 
-    result = channel.queue_declare(queue='fila_c1', exclusive=False)
+    result = channel.queue_declare(queue='fila.c1', exclusive=False)
     queue_name = result.method.queue
 
     routing_keys = ['promocao.categoria.A', 'promocao.categoria.B']

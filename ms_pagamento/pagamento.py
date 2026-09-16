@@ -51,7 +51,7 @@ def main():
 
     channel.exchange_declare(exchange='eCommerce', exchange_type='direct')
 
-    result = channel.queue_declare(queue='fila_pagamento', exclusive=False)
+    result = channel.queue_declare(queue='fila.pagamento', exclusive=False)
     queue_name = result.method.queue
 
     channel.queue_bind(exchange='eCommerce', queue=queue_name, routing_key='pedido.estoque_ok')

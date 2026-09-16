@@ -50,10 +50,10 @@ def callback_consumidor(ch, method, properties, body):
     
     if id_pedido in pedidos:
         pedidos[id_pedido]['status'] = evento
-        print(f"\nPedido {id_pedido} atualizado para: {evento}")
+        print(f"Pedido {id_pedido} atualizado para: {evento}")
 
         if evento in ["estoque.indisponivel", "pagamento.recusado"]:
-            print(f"\nEnviando 'pedido.excluido': {id_pedido}...")
+            print(f"Enviando 'pedido.excluido': {id_pedido}...")
             mensagem_json = {"id_pedido": id_pedido}
             payload = assinar_payload(mensagem_json, key_path="private_key.pem")
             ch.basic_publish(
@@ -63,7 +63,6 @@ def callback_consumidor(ch, method, properties, body):
             )
             pedidos[id_pedido]['status'] = "pedido.excluido"
             
-    print("\nComando (1-Visualizar, 2-Comprar, 3-Excluir, 4-Status, 5-Sair): ", end="")
     ch.basic_ack(delivery_tag=method.delivery_tag)
 
 def iniciar_consumidor():
@@ -71,7 +70,7 @@ def iniciar_consumidor():
         pika.ConnectionParameters(host='rabbitmq'))
     channel = connection.channel()
 
-    result = channel.queue_declare(queue='fila_principal', exclusive=False)
+    result = channel.queue_declare(queue='fila.principal', exclusive=False)
     queue_name = result.method.queue
 
     for rk in ORIGEM_CHAVES.keys():

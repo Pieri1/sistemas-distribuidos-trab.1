@@ -16,7 +16,7 @@ def main():
 
     while True:
         categoria = random.choice(categorias)
-        desconto = random.randint(10, 60)
+        desconto = random.randint(5, 15)
             
         routing_key = f'promocao.categoria.{categoria}'
             
