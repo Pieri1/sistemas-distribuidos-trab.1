@@ -10,5 +10,5 @@
       ]
     }
   },
-  "postCreateCommand": "pip install pika"
+  "postCreateCommand": "pip install pika pycryptodome"
 }
