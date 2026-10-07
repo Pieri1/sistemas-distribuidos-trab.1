@@ -3,6 +3,14 @@
   "dockerComposeFile": "docker-compose.yml",
   "service": "app",
   "workspaceFolder": "/workspace",
+  "forwardPorts": [
+    8000
+  ],
+  "features": {
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "22"
+    }
+  },
   "customizations": {
     "vscode": {
       "extensions": [
@@ -10,5 +18,5 @@
       ]
     }
   },
-  "postCreateCommand": "pip install pika pycryptodome"
+  "postCreateCommand": "pip install pika pycryptodome fastapi uvicorn resend"
 }

@@ -1,0 +1,49 @@
+@import "tailwindcss";
+
+body {
+  margin: 24px;
+  font-family: Arial, Helvetica, sans-serif;
+  color: #111;
+  background: #fff;
+}
+
+main {
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+header, nav, section, main > p {
+  border: 1px solid #999;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+table {
+  width: 100%;
+  margin-top: 16px;
+  border-collapse: collapse;
+}
+
+th, td {
+  border: 1px solid #999;
+  padding: 8px;
+  text-align: left;
+}
+
+button, input, select {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+fieldset {
+  margin: 16px 0;
+}
