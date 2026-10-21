@@ -1,0 +1,13 @@
+{
+  "name": "tutorial-frontend-node-express",
+  "version": "1.0.0",
+  "description": "Tutorial de Frontend em Node.js + Express consumindo REST e SSE do FastAPI",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  }
+}
+

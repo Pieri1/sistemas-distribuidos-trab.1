@@ -3,6 +3,7 @@
   "dockerComposeFile": "docker-compose.yml",
   "service": "app",
   "workspaceFolder": "/workspace",
+  "forwardPorts": [3000, 8000, 8001, 8002, 8003],
   "customizations": {
     "vscode": {
       "extensions": [
@@ -10,5 +11,5 @@
       ]
     }
   },
-  "postCreateCommand": "pip install pika pycryptodome"
+  "postCreateCommand": "pip install pika pycryptodome fastapi uvicorn requests python-dotenv && (command -v npm >/dev/null 2>&1 || (sudo apt-get update && sudo apt-get install -y nodejs npm)) && cd /workspace/frontend && npm install && cd /workspace/testes/4-frontend-node-express && npm install"
 }
