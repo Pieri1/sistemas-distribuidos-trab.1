@@ -17,11 +17,11 @@ from seguranca import assinar_payload, validar_envelope
 
 RABBITMQ_HOST = os.getenv("RABBITMQ_HOST", "rabbitmq")
 MS_ESTOQUE_URL = os.getenv("MS_ESTOQUE_URL", "http://localhost:8001")
-MOCK_PAGAMENTO_URL = os.getenv("MOCK_PAGAMENTO_URL", "http://localhost:8003")
 
 ORIGEM_CHAVES = {
     "pedido.estoque_ok": "public_keys/estoque.pem",
     "estoque.indisponivel": "public_keys/estoque.pem",
+    "pagamento.pendente": "public_keys/pagamento.pem",
     "pagamento.aprovado": "public_keys/pagamento.pem",
     "pagamento.recusado": "public_keys/pagamento.pem",
     "pedido.enviado": "public_keys/entrega.pem",
@@ -31,6 +31,7 @@ MAPA_STATUS_AMIGAVEL = {
     "pedido.criado": "Pedido Criado (Aguardando Estoque)",
     "pedido.estoque_ok": "Estoque Confirmado",
     "estoque.indisponivel": "Estoque Indisponível",
+    "pagamento.pendente": "Pagamento Pendente (Aguardando Checkout)",
     "pagamento.aprovado": "Pagamento Aprovado",
     "pagamento.recusado": "Pagamento Recusado",
     "pedido.enviado": "Pedido Enviado",
@@ -93,6 +94,9 @@ def callback_consumidor(ch, method, properties, body):
         if "valor_total" in mensagem:
             pedidos[id_pedido]["valor_total"] = mensagem["valor_total"]
 
+        if "checkout_url" in mensagem:
+            pedidos[id_pedido]["checkout_url"] = mensagem["checkout_url"]
+
         print(f"Pedido {id_pedido} atualizado para: {evento} ({status_legivel})")
 
         # Emite notificação SSE em tempo real para o Frontend sobre a mudança de estado
@@ -101,7 +105,7 @@ def callback_consumidor(ch, method, properties, body):
             "id_pedido": id_pedido,
             "evento": evento,
             "status_descricao": status_legivel,
-            "checkout_url": pedidos[id_pedido]["checkout_url"],
+            "checkout_url": pedidos[id_pedido].get("checkout_url"),
             "pedido": pedidos[id_pedido],
         })
 
@@ -186,8 +190,8 @@ def listar_pedidos():
 @app.post("/pedidos", status_code=201)
 def criar_pedido(dados: CriarPedidoRequest):
     """
-    Cria um novo pedido, publica 'pedido.criado' no RabbitMQ e retorna
-    as informações do pedido juntamente com a URL do Mock de Pagamento.
+    Cria um novo pedido e publica 'pedido.criado' no RabbitMQ.
+    A URL de checkout será recebida assincronamente via evento 'pagamento.pendente'.
     """
     produtos_filtrados = {
         str(k): int(v) for k, v in dados.produtos.items() if int(v) > 0
@@ -196,14 +200,13 @@ def criar_pedido(dados: CriarPedidoRequest):
         raise HTTPException(status_code=400, detail="O pedido deve conter ao menos 1 produto.")
 
     id_pedido = str(uuid.uuid4())[:8]
-    checkout_url = f"{MOCK_PAGAMENTO_URL}/checkout/{id_pedido}"
 
     pedidos[id_pedido] = {
         "id_pedido": id_pedido,
         "produtos": produtos_filtrados,
         "status": "pedido.criado",
         "status_descricao": MAPA_STATUS_AMIGAVEL["pedido.criado"],
-        "checkout_url": checkout_url,
+        "checkout_url": None,
     }
 
     mensagem = {"id_pedido": id_pedido, "produtos": produtos_filtrados}
@@ -213,7 +216,6 @@ def criar_pedido(dados: CriarPedidoRequest):
     return {
         "mensagem": "Pedido criado com sucesso!",
         "id_pedido": id_pedido,
-        "checkout_url": checkout_url,
         "pedido": pedidos[id_pedido],
     }
 

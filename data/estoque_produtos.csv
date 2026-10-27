@@ -1,14 +1,14 @@
 cod_produto,nom_produto,cod_categoria,vlr_produto,qtd_estoque
-1,Premium Speaker 1,A,749.94,91
-2,Premium Monitor 2,A,2924.77,41
+1,Premium Speaker 1,A,749.94,89
+2,Premium Monitor 2,A,2924.77,40
 3,Max Mouse 3,A,1811.89,92
-4,Compact RAM 4,A,726.52,55
-5,Pro Monitor 5,A,2200.77,77
+4,Compact RAM 4,A,726.52,54
+5,Pro Monitor 5,A,2200.77,76
 6,Pro SSD 6,A,1261.53,57
 7,Basic Charger 7,A,585.97,85
 8,Premium Headset 8,A,1800.17,110
 9,Ultra Charger 9,B,731.64,18
-10,Premium SSD 10,B,179.4,44
+10,Premium SSD 10,B,179.4,43
 11,Ultra HD 11,C,84.22,128
 12,Super Speaker 12,A,1487.2,140
 13,Smart GPU 13,A,2475.44,127

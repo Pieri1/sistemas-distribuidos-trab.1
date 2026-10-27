@@ -130,12 +130,6 @@ async function finalizarPedido() {
 
         pedidosLocais[data.id_pedido] = data.pedido;
         renderizarPedidos();
-
-        // Requisito do PDF: "Pagamento: ao finalizar o pedido, recebe a URL do Mock de Pagamento
-        // e abre uma nova aba no navegador para simular o pagamento."
-        if (data.checkout_url) {
-            window.open(data.checkout_url, "_blank");
-        }
     } catch (err) {
         alert(`Erro ao criar pedido: ${err.message}`);
     }
@@ -183,7 +177,7 @@ function renderizarPedidos() {
         const itensStr = Object.entries(p.produtos || {})
             .map(([cod, qtd]) => `Prod #${cod} (${qtd} un.)`)
             .join(", ");
-        const podePagar = p.status === "pedido.estoque_ok" || p.status === "pedido.criado";
+        const podePagar = p.status === "pagamento.pendente" && Boolean(p.checkout_url);
         const podeCancelar = p.status !== "pedido.excluido" && p.status !== "pedido.enviado";
 
         return `
@@ -228,6 +222,10 @@ function iniciarConexaoSSE() {
             pedidosLocais[dados.id_pedido] = dados.pedido;
             renderizarPedidos();
             carregarProdutos();
+
+            if (dados.evento === "pagamento.pendente" && dados.checkout_url) {
+                window.open(dados.checkout_url, "_blank");
+            }
         }
         feed.prepend(li);
     };

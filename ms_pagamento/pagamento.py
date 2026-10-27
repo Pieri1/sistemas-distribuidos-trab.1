@@ -70,8 +70,17 @@ def callback(ch, method, properties, body):
             checkout_url = retorno.get("checkout_url")
             cobrancas_registradas[id_pedido] = checkout_url
             print(f"\n[MS Pagamento] Cobrança solicitada ao Mock para o pedido {id_pedido}!")
-            print(f" -> URL de Checkout gerada: {checkout_url}")
+            print(f" -> URL de Checkout recebida do Mock: {checkout_url}")
             print(f" -> Aguardando Webhook em: {WEBHOOK_URL}")
+
+            print(f"Enviando 'pagamento.pendente': {id_pedido}")
+            publicar_evento(
+                "pagamento.pendente",
+                {
+                    "id_pedido": id_pedido,
+                    "checkout_url": checkout_url,
+                },
+            )
         except Exception as e:
             print(f"\n [❌] Erro ao solicitar cobrança ao Mock de Pagamento: {e}")
 

@@ -19,7 +19,7 @@ O sistema combina:
 | **Frontend Web** | `frontend/server.js` | `3000` | Catálogo, carrinho, abertura do checkout em nova aba, acompanhamento SSE e cadastro de e-mail para promoções. |
 | **MS Principal (API Gateway)** | `ms_principal/main.py` | `8000` | Endpoints REST (`/produtos`, `/pedidos`, `/interesses`), canal SSE (`/sse/pedidos`) e publicação/consumo no RabbitMQ. |
 | **MS Estoque** | `ms_estoque/estoque.py` | `8001` | Consome `pedido.criado` e `pedido.excluido`, **persiste o estoque em `data/estoque_produtos.csv`** e expõe `GET /produtos` para o Gateway. |
-| **MS Pagamento** | `ms_pagamento/pagamento.py` | `8002` | Consome `pedido.estoque_ok`, solicita cobrança via REST ao Mock e expõe `POST /webhook/pagamento` para publicar `pagamento.aprovado` ou `pagamento.recusado`. |
+| **MS Pagamento** | `ms_pagamento/pagamento.py` | `8002` | Consome `pedido.estoque_ok`, solicita cobrança via REST ao Mock, publica `pagamento.pendente` (com a `checkout_url` gerada pelo Mock) e expõe `POST /webhook/pagamento` para publicar `pagamento.aprovado` ou `pagamento.recusado`. |
 | **Mock de Pagamento** | `mock_pagamento/mock_pagamento.py` | `8003` | Recebe `POST /cobrancas`, renderiza a página `GET /checkout/{id}` com botões Aprovar/Recusar e dispara o **Webhook** para o MS Pagamento. |
 | **MS Entrega** | `ms_entrega/entrega.py` | — | Consome `pagamento.aprovado`, simula emissão de Nota Fiscal e despacho, e publica `pedido.enviado`. |
 | **MS Promoções** | `ms_promocoes/promo.py` | — | Consome `interesse.promocao`, gera promoções por categoria e envia e-mails via API externa (**Resend**). |
