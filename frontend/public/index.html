@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>E-Commerce Distribuído — UTFPR</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header class="topbar">
+        <div class="container topbar-content">
+            <div>
+                <h1>🛒 E-Commerce Distribuído (UTFPR)</h1>
+                <p class="subtitle">Arquitetura de Microsserviços • REST • RabbitMQ • SSE • Webhook</p>
+            </div>
+            <div class="sse-status">
+                <span>Canal SSE:</span>
+                <span id="sse-badge" class="badge badge-disconnected">Conectando...</span>
+            </div>
+        </div>
+    </header>
+
+    <main class="container grid-layout">
+        <!-- COLUNA ESQUERDA: CATÁLOGO DE PRODUTOS -->
+        <section class="panel">
+            <div class="panel-header">
+                <h2>📦 Catálogo de Produtos (MS Estoque via Gateway)</h2>
+                <div class="filters">
+                    <select id="filtro-categoria" onchange="renderizarCatalogo()">
+                        <option value="TODAS">Todas as Categorias</option>
+                        <option value="A">Categoria A</option>
+                        <option value="B">Categoria B</option>
+                        <option value="C">Categoria C</option>
+                    </select>
+                    <button class="btn btn-secondary" onclick="carregarProdutos()">🔄 Atualizar</button>
+                </div>
+            </div>
+            <div id="lista-produtos" class="product-list">
+                <p class="muted">Carregando produtos do API Gateway...</p>
+            </div>
+        </section>
+
+        <!-- COLUNA DIREITA: CARRINHO, PEDIDOS (SSE) E PROMOÇÕES -->
+        <div class="right-column">
+            <!-- CARRINHO DE COMPRAS -->
+            <section class="panel">
+                <h2>🛍️ Meu Carrinho</h2>
+                <div id="itens-carrinho" class="cart-items">
+                    <p class="muted">Seu carrinho está vazio. Adicione produtos do catálogo ao lado.</p>
+                </div>
+                <div class="cart-footer">
+                    <div class="cart-total">
+                        Total Estimado: <strong id="valor-total-carrinho">R$ 0,00</strong>
+                    </div>
+                    <button id="btn-finalizar" class="btn btn-primary" onclick="finalizarPedido()" disabled>
+                        ✅ Finalizar Pedido e Pagar
+                    </button>
+                </div>
+            </section>
+
+            <!-- ACOMPANHAMENTO DE PEDIDOS EM TEMPO REAL (SSE) -->
+            <section class="panel">
+                <div class="panel-header">
+                    <h2>📡 Acompanhamento de Pedidos (SSE Tempo Real)</h2>
+                </div>
+                <div id="lista-pedidos" class="orders-list">
+                    <p class="muted">Nenhum pedido realizado ainda.</p>
+                </div>
+
+                <h3>🔔 Feed de Eventos SSE Recebidos</h3>
+                <ul id="feed-sse" class="sse-feed">
+                    <li class="muted">Aguardando notificações do API Gateway...</li>
+                </ul>
+            </section>
+
+            <!-- INSCRIÇÃO EM PROMOÇÕES (E-MAIL EXTERNO) -->
+            <section class="panel">
+                <h2>📧 Ofertas e Promoções por E-mail</h2>
+                <p class="small-text">
+                    Cadastre seu e-mail e escolha as categorias de interesse para receber promoções via API de E-mail (Resend).
+                </p>
+                <div class="promo-form">
+                    <input type="email" id="email-promo" placeholder="seuemail@exemplo.com" required />
+                    <div class="checkbox-group">
+                        <label><input type="checkbox" class="cat-check" value="A" checked /> Categoria A</label>
+                        <label><input type="checkbox" class="cat-check" value="B" checked /> Categoria B</label>
+                        <label><input type="checkbox" class="cat-check" value="C" /> Categoria C</label>
+                    </div>
+                    <div class="promo-actions">
+                        <button class="btn btn-primary" onclick="registrarInteresse()">🔔 Cadastrar Interesse</button>
+                        <button class="btn btn-danger" onclick="cancelarInteresse()">🔕 Cancelar Interesse</button>
+                    </div>
+                    <p id="feedback-promo" class="feedback-msg"></p>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <script src="app.js"></script>
+</body>
+</html>
+

@@ -1,16 +1,61 @@
-import pika
+import os
 import sys
 import json
 import csv
+import threading
+from contextlib import asynccontextmanager
 from pathlib import Path
+import pika
+import uvicorn
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from seguranca import assinar_payload, validar_envelope
 
-with open(Path(__file__).parent.parent / "data" / "estoque_produtos.csv", newline="", encoding="utf-8") as arq:
-    registros = csv.reader(arq)
-    next(registros)
-    estoque = {registro[0]: int(registro[4]) for registro in registros}
+RABBITMQ_HOST = os.getenv("RABBITMQ_HOST", "rabbitmq")
+CSV_PATH = Path(__file__).parent.parent / "data" / "estoque_produtos.csv"
 
+lock_estoque = threading.Lock()
+catalogo_produtos = {}
+estoque = {}
 reservas = {}
+
+
+def carregar_estoque():
+    with lock_estoque:
+        with open(CSV_PATH, newline="", encoding="utf-8") as arq:
+            registros = csv.reader(arq)
+            cabecalho = next(registros)
+            for registro in registros:
+                cod = str(registro[0])
+                catalogo_produtos[cod] = {
+                    "cod_produto": cod,
+                    "nom_produto": registro[1],
+                    "cod_categoria": registro[2],
+                    "vlr_produto": float(registro[3]),
+                    "qtd_estoque": int(registro[4]),
+                }
+                estoque[cod] = int(registro[4])
+
+
+def persistir_estoque():
+    """Persiste os dados atualizados dos produtos em estoque no arquivo CSV."""
+    with lock_estoque:
+        with open(CSV_PATH, "w", newline="", encoding="utf-8") as arq:
+            escritor = csv.writer(arq)
+            escritor.writerow(["cod_produto", "nom_produto", "cod_categoria", "vlr_produto", "qtd_estoque"])
+            for cod, item in catalogo_produtos.items():
+                item["qtd_estoque"] = estoque[cod]
+                escritor.writerow([
+                    item["cod_produto"],
+                    item["nom_produto"],
+                    item["cod_categoria"],
+                    item["vlr_produto"],
+                    item["qtd_estoque"],
+                ])
+
+
+carregar_estoque()
+
 
 def callback(ch, method, properties, body):
     evento = method.routing_key
@@ -26,70 +71,118 @@ def callback(ch, method, properties, body):
 
     if evento == "pedido.criado":
         produtos_solicitados = mensagem.get("produtos", {})
-        
+
         dispcheck = True
         for produto, quant in produtos_solicitados.items():
-            if estoque.get(produto, 0) < quant:
+            produto_str = str(produto)
+            if quant <= 0 or estoque.get(produto_str, 0) < quant:
                 dispcheck = False
                 break
-        
+
         if dispcheck:
+            valor_total = 0.0
             for produto, quantidade in produtos_solicitados.items():
-                estoque[produto] -= quantidade
-            
+                produto_str = str(produto)
+                estoque[produto_str] -= quantidade
+                valor_total += catalogo_produtos[produto_str]["vlr_produto"] * quantidade
+
             reservas[id_pedido] = produtos_solicitados
-            
-            print(f"\nEnviando 'pedido.estoque_ok': {id_pedido}")
-            mensagem_json = {"id_pedido": id_pedido}
+            persistir_estoque()
+
+            print(f"\nEnviando 'pedido.estoque_ok': {id_pedido} (Total: R$ {valor_total:.2f})")
+            mensagem_json = {
+                "id_pedido": id_pedido,
+                "valor_total": round(valor_total, 2),
+            }
             payload = assinar_payload(mensagem_json, key_path="private_key.pem")
 
             ch.basic_publish(
-                exchange='eCommerce',
-                routing_key='pedido.estoque_ok',
-                body=json.dumps(payload)
+                exchange="eCommerce",
+                routing_key="pedido.estoque_ok",
+                body=json.dumps(payload),
             )
         else:
-            print(f"\n Enviando 'estoque.indisponivel': {id_pedido}")
+            print(f"\nEnviando 'estoque.indisponivel': {id_pedido}")
             mensagem_json = {"id_pedido": id_pedido}
             payload = assinar_payload(mensagem_json, key_path="private_key.pem")
             ch.basic_publish(
-                exchange='eCommerce',
-                routing_key='estoque.indisponivel',
-                body=json.dumps(payload)
+                exchange="eCommerce",
+                routing_key="estoque.indisponivel",
+                body=json.dumps(payload),
             )
 
     elif evento == "pedido.excluido":
         reservados = reservas.get(id_pedido)
         if reservados:
             for produto, quant in reservados.items():
-                estoque[produto] += quant
+                produto_str = str(produto)
+                estoque[produto_str] += quant
             del reservas[id_pedido]
-            print(f"\nRemovido da reserva: {id_pedido}")
-            
-    print(f" Estoque: {estoque}")
+            persistir_estoque()
+            print(f"\nRemovido da reserva e estornado ao CSV: {id_pedido}")
+
     ch.basic_ack(delivery_tag=method.delivery_tag)
 
-def main():
+
+def iniciar_consumidor():
     connection = pika.BlockingConnection(
-        pika.ConnectionParameters(host='rabbitmq'))
+        pika.ConnectionParameters(host=RABBITMQ_HOST)
+    )
     channel = connection.channel()
 
-    channel.exchange_declare(exchange='eCommerce', exchange_type='direct')
+    channel.exchange_declare(exchange="eCommerce", exchange_type="direct")
 
-    result = channel.queue_declare(queue='fila.estoque', exclusive=False)
+    result = channel.queue_declare(queue="fila.estoque", exclusive=False)
     queue_name = result.method.queue
 
-    routing_keys = ['pedido.criado', 'pedido.excluido']
+    routing_keys = ["pedido.criado", "pedido.excluido"]
     for rk in routing_keys:
-        channel.queue_bind(exchange='eCommerce', queue=queue_name, routing_key=rk)
+        channel.queue_bind(exchange="eCommerce", queue=queue_name, routing_key=rk)
 
-    print(f" Estoque: {estoque}")
+    print(f"MS Estoque aguardando eventos RabbitMQ ({ len(estoque) } produtos carregados)...")
 
     channel.basic_consume(queue=queue_name, on_message_callback=callback, auto_ack=False)
     channel.start_consuming()
 
-if __name__ == '__main__':
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    thread = threading.Thread(target=iniciar_consumidor, daemon=True)
+    thread.start()
+    yield
+
+
+app = FastAPI(title="MS Estoque API", lifespan=lifespan)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+@app.get("/produtos")
+def listar_produtos_disponiveis():
+    """Expõe endpoint REST para o MS Gateway consultar os produtos disponíveis em estoque."""
+    with lock_estoque:
+        disponiveis = [
+            {
+                "cod_produto": cod,
+                "nom_produto": item["nom_produto"],
+                "cod_categoria": item["cod_categoria"],
+                "vlr_produto": item["vlr_produto"],
+                "qtd_estoque": estoque[cod],
+            }
+            for cod, item in catalogo_produtos.items()
+            if estoque[cod] > 0
+        ]
+    return {"produtos": disponiveis}
+
+
+if __name__ == "__main__":
     try:
-        main()
+        uvicorn.run(app, host="0.0.0.0", port=8001, log_level="info")
     except KeyboardInterrupt:
         sys.exit(0)

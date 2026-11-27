@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Tutorial 4 - Frontend Node.js + REST + SSE</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 850px; margin: 30px auto; padding: 0 20px; color: #222; }
+        .card { border: 1px solid #ccc; border-radius: 8px; padding: 16px; margin-bottom: 20px; background: #fafafa; }
+        button { padding: 8px 14px; cursor: pointer; background: #0066cc; color: white; border: none; border-radius: 4px; margin-right: 8px; }
+        button:hover { background: #0052a3; }
+        pre, ul { background: #fff; border: 1px solid #ddd; padding: 12px; border-radius: 6px; }
+        .badge { display: inline-block; padding: 3px 8px; border-radius: 4px; background: #e0f2fe; color: #0369a1; font-size: 13px; }
+    </style>
+</head>
+<body>
+    <h1>🛒 Laboratório Frontend (Node.js / Express + JS)</h1>
+    <p>Este exemplo demonstra como o seu Frontend em JavaScript conversa com o Backend em Python (FastAPI).</p>
+
+    <!-- SEÇÃO 1: CONSUMO DE API REST (Tutorial 1 na porta 8000) -->
+    <div class="card">
+        <h2>1. Consumindo API REST com <code>fetch()</code> (Porta 8000)</h2>
+        <button onclick="carregarProdutos()">🔄 Listar Produtos (GET)</button>
+        <button onclick="criarProdutoTeste()">➕ Criar Produto Teste (POST)</button>
+        <pre id="saida-rest">Clique em "Listar Produtos" (certifique-se de que o Tutorial 1 está rodando na porta 8000).</pre>
+    </div>
+
+    <!-- SEÇÃO 2: NOTIFICAÇÕES EM TEMPO REAL COM SSE (Tutorial 3 na porta 8003) -->
+    <div class="card">
+        <h2>2. Acompanhamento em Tempo Real com SSE <code>EventSource</code> (Porta 8003)</h2>
+        <p>Status da conexão SSE: <span id="status-sse" class="badge">Desconectado</span></p>
+        <button onclick="conectarSSE()">📡 Conectar ao SSE</button>
+        <button onclick="dispararEventoTeste()">⚡ Disparar Evento de Teste</button>
+        <ul id="lista-eventos-sse">
+            <li><em>Nenhuma notificação recebida ainda...</em></li>
+        </ul>
+    </div>
+
+    <!-- SEÇÃO 3: MOCK DE PAGAMENTO EM NOVA ABA (Tutorial 2 na porta 8001/8002) -->
+    <div class="card">
+        <h2>3. Abrir URL do Mock de Pagamento em Nova Aba (Porta 8001/8002)</h2>
+        <p>No Trabalho 2, ao finalizar um pedido, o usuário abre a URL do Mock de Pagamento em outra aba:</p>
+        <button onclick="abrirCheckoutMock()">💳 Abrir Checkout em Nova Aba</button>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
+

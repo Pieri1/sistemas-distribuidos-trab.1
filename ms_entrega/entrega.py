@@ -1,8 +1,12 @@
+import os
 import pika
 import sys
 import json
 import time
 from seguranca import assinar_payload, validar_envelope
+
+RABBITMQ_HOST = os.getenv("RABBITMQ_HOST", "rabbitmq")
+
 
 def callback(ch, method, properties, body):
     evento = method.routing_key
@@ -18,36 +22,44 @@ def callback(ch, method, properties, body):
     print(f"\nRecebido e validado {evento}: {mensagem}")
 
     if evento == "pagamento.aprovado":
-        time.sleep(2)
+        print(f" [📄] Emitindo Nota Fiscal para o pedido {id_pedido}...")
+        time.sleep(1)
+        print(f" [🚚] Despachando produtos do pedido {id_pedido}...")
+        time.sleep(1)
 
         print(f"\nEnviando 'pedido.enviado': {id_pedido}")
         mensagem_json = {"id_pedido": id_pedido}
         payload = assinar_payload(mensagem_json, key_path="private_key.pem")
 
         ch.basic_publish(
-            exchange='eCommerce',
-            routing_key='pedido.enviado',
-            body=json.dumps(payload)
+            exchange="eCommerce",
+            routing_key="pedido.enviado",
+            body=json.dumps(payload),
         )
 
     ch.basic_ack(delivery_tag=method.delivery_tag)
 
+
 def main():
     connection = pika.BlockingConnection(
-        pika.ConnectionParameters(host='rabbitmq'))
+        pika.ConnectionParameters(host=RABBITMQ_HOST)
+    )
     channel = connection.channel()
 
-    channel.exchange_declare(exchange='eCommerce', exchange_type='direct')
+    channel.exchange_declare(exchange="eCommerce", exchange_type="direct")
 
-    result = channel.queue_declare(queue='fila.entrega', exclusive=False)
+    result = channel.queue_declare(queue="fila.entrega", exclusive=False)
     queue_name = result.method.queue
 
-    channel.queue_bind(exchange='eCommerce', queue=queue_name, routing_key='pagamento.aprovado')
+    channel.queue_bind(exchange="eCommerce", queue=queue_name, routing_key="pagamento.aprovado")
+
+    print("MS Entrega aguardando eventos 'pagamento.aprovado'...")
 
     channel.basic_consume(queue=queue_name, on_message_callback=callback, auto_ack=False)
     channel.start_consuming()
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     try:
         main()
     except KeyboardInterrupt:
